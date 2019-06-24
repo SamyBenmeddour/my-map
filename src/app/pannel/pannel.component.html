@@ -1,0 +1,19 @@
+<div class="pannel">
+  <div>
+    <label >
+      Filtrer par statut
+      <select [(ngModel)]="selectedOption">
+        <option *ngFor="let item of states">{{item}}</option>
+      </select>
+    </label>
+    <p>Selected option: {{ selectedOption }}</p>
+  </div>
+  <div>
+    <label >
+      Filtrer par zone
+      <input [(ngModel)]="zone" type="number">
+    </label>
+    <p>Selected zone: {{ zone }}</p>
+  </div>
+  <button class="button" (click)="search()" [disabled]="loading"> Rechercher</button>
+</div>
