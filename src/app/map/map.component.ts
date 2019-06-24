@@ -1,7 +1,9 @@
 import {Component, OnInit} from '@angular/core';
 import {MapService} from '../services/map.service';
 import * as mapboxgl from 'mapbox-gl';
-import {LngLat} from 'mapbox-gl';
+import {GeoJSONSource, LngLat} from 'mapbox-gl';
+import {GeoJSON, GeoJsonObject, Point, FeatureCollection, Geometry, Feature, GeoJsonProperties} from 'geojson';
+import {Course} from '../model/Course';
 
 @Component({
   selector: 'app-map',
@@ -12,8 +14,13 @@ import {LngLat} from 'mapbox-gl';
 export class MapComponent implements OnInit {
 
   map: mapboxgl.Map;
+  data: FeatureCollection<Geometry>;
 
   constructor(private mapService: MapService) {
+    this.data = {
+      type: 'FeatureCollection',
+      features: new Array<Feature<Point>>()
+    };
   }
 
   ngOnInit() {
@@ -22,6 +29,19 @@ export class MapComponent implements OnInit {
 
   private initMap() {
     this.buildMap();
+  }
+
+  private convertToFeature(course: Course): Feature<Point> {
+    const geo: Geometry = {
+      type: 'Point',
+      coordinates: [course.lng, course.lat]
+    };
+
+    return  {
+      type: 'Feature',
+      geometry: geo,
+      properties: {title: course.id, Icon: 'monument'}
+    };
   }
 
   private buildMap() {
@@ -35,38 +55,42 @@ export class MapComponent implements OnInit {
 
     this.map.on('load', () => {
 
+      this.map.addSource('courses', { type: 'geojson', data: this.data});
+
+      this.mapService.getCourses().subscribe(
+        next => {
+          next.forEach( item => {
+            const geo = this.convertToFeature(item);
+            this.data.features.push(geo);
+          });
+          (this.map.getSource('courses') as GeoJSONSource).setData(this.data);
+        }
+      );
+
       this.mapService.getMyLocation().subscribe(
         location => {
           this.map.flyTo({center: location, zoom: 13});
         }
       );
 
-      this.mapService.getCourses()
-        .subscribe(courses => {
 
-            courses.forEach(course => {
-
-              const el = document.createElement('div');
-              el.style.backgroundImage = 'url("/assets/icon.svg")';
-              el.style.width = '25px';
-              el.style.height = '25px';
-
-              // make a marker for each feature and add to the map
-              new mapboxgl.Marker(el)
-                .setLngLat(new LngLat(course.lng, course.lat))
-                .addTo(this.map);
-            });
-          },
-          onError => {
-            console.log('on error: ' + onError);
-          }
-        );
-
-      this.map.addSource('caca', {
-        type: 'geojson',
-        data: 'https://docs.mapbox.com/help/data/chicago-parks.geojson'
+      this.map.addLayer({
+        id: 'points',
+        type: 'symbol',
+        source: 'courses',
+        layout: {
+          'icon-image': '{icon}-15',
+          'text-field': '{title}',
+          'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+          'text-offset': [0, 0.6],
+          'text-anchor': 'top'
+        }
       });
 
+
+      const test = this.map.getSource('courses');
+      console.log('Test: ' + test);
+      console.log(test.type);
 
     });
 
